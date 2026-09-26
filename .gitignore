@@ -203,6 +203,14 @@ cython_debug/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 
+# Node / Electron
+node_modules/
+.vite/
+out/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
 # Ruff stuff:
 .ruff_cache/
 
