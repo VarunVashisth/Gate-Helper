@@ -1,0 +1,29 @@
+{
+  "name": "gate-2027-helper",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared web and desktop study companion for GATE 2027.",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "backend": "node scripts/run-python.mjs -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload",
+    "backend:desktop": "cross-env GATE_HELPER_MODE=desktop node scripts/run-python.mjs -m uvicorn backend.main:app --host 127.0.0.1 --port 8000",
+    "frontend": "npm --prefix frontend run dev",
+    "dev:web": "concurrently -k -n backend,frontend -c blue,green \"npm:backend\" \"npm:frontend\"",
+    "dev:electron": "concurrently -k -n frontend,electron -c green,magenta \"npm:frontend\" \"wait-on tcp:5173 && npm run electron:dev\"",
+    "electron:compile": "tsc -p electron/tsconfig.json",
+    "electron:dev": "npm run electron:compile && cross-env ELECTRON_RENDERER_URL=http://127.0.0.1:5173 electron .",
+    "build:web": "npm --prefix frontend run build",
+    "build": "npm run build:web && npm run electron:compile",
+    "test:backend": "node scripts/run-python.mjs -m pytest backend/tests",
+    "test": "npm run build && npm run test:backend"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.0.0",
+    "electron": "^38.0.0",
+    "typescript": "^5.9.2",
+    "wait-on": "^8.0.4"
+  }
+}
+

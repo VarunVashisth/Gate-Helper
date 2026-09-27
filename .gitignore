@@ -1,0 +1,16 @@
+node_modules/
+frontend/dist/
+dist-electron/
+*.py[cod]
+*.tsbuildinfo
+__pycache__/
+.pytest_cache/
+.venv/
+backend/data/*.db
+backend/data/*.db-shm
+backend/data/*.db-wal
+backend/data/papers/
+backend/data/uploads/
+.env
+*.log
+
