@@ -8,6 +8,7 @@ from starlette.exceptions import HTTPException
 from starlette.responses import Response
 
 from backend.api.platform import router as platform_router
+from backend.api.syllabus import router as syllabus_router
 from backend.config import settings
 from backend.db.database import initialize_database
 
@@ -35,6 +36,7 @@ app.add_middleware(
 )
 
 app.include_router(platform_router, prefix="/api")
+app.include_router(syllabus_router, prefix="/api")
 
 assets_path = Path(settings.data_directory) / "papers"
 assets_path.mkdir(parents=True, exist_ok=True)

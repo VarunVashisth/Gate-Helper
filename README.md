@@ -2,9 +2,9 @@
 
 A local-first GATE preparation companion with one React interface for the web and Electron, backed by the same Python/FastAPI API.
 
-## Phase 0 status
+## Implementation status
 
-This repository currently implements the foundation checkpoint from `plan.md`: the shared UI shell, five routes, platform detection, desktop process management, and SQLite schema. PDF extraction, syllabus tracking behavior, test taking/scoring, and LLM chat are intentionally deferred to their planned phases.
+Phases 0 and 1 from `plan.md` are implemented: the shared application shell plus PDF syllabus extraction, editable review, persistent hierarchical tracking, filters, and leaf-topic progress. Mock/PYQ extraction, test taking/scoring, and LLM chat remain deferred to their planned phases.
 
 ## Prerequisites
 
@@ -60,5 +60,5 @@ This compiles the React and Electron TypeScript projects, builds the production 
 | `VITE_DESKTOP_DOWNLOAD_URL` | GitHub placeholder | Desktop download target to replace once releases exist. |
 | `PYTHON_EXECUTABLE` | project `.venv`, then `python` | Explicit Python executable used by root scripts and Electron during development. |
 
-Full implementation and architecture notes are in [IMPLEMENTATION.md](IMPLEMENTATION.md).
+Foundation notes are in [IMPLEMENTATION.md](IMPLEMENTATION.md); the exhaustive Phase 1 record is in [PHASE1_IMPLEMENTATION.md](PHASE1_IMPLEMENTATION.md).
 

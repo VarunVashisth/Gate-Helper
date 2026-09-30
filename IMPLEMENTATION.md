@@ -1,6 +1,6 @@
 # Phase 0 implementation record
 
-This document records every artifact and executable decision added for the Phase 0 checkpoint in `plan.md`. It is deliberately exhaustive so later phases can distinguish established contracts from placeholders.
+This document records every artifact and executable decision added for the Phase 0 checkpoint in `plan.md`. It is deliberately exhaustive so later phases can distinguish established contracts from placeholders. Phase 1 is documented separately in `PHASE1_IMPLEMENTATION.md`.
 
 ## Scope boundary
 
