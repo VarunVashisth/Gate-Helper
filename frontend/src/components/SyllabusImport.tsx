@@ -38,8 +38,7 @@ function RowAction({ label, disabled, onClick, children, danger = false }: {
   >{children}</button>;
 }
 
-export function SyllabusImport({ hasExisting, onCancel, onSaved }: {
-  hasExisting: boolean;
+export function SyllabusImport({ onCancel, onSaved }: {
   onCancel: () => void;
   onSaved: (document: SyllabusDocument) => void;
 }) {
@@ -98,7 +97,7 @@ export function SyllabusImport({ hasExisting, onCancel, onSaved }: {
     setBusy(true);
     setError(null);
     try {
-      onSaved(await api.saveSyllabus(preview.topics));
+      onSaved(await api.createSyllabus(preview.title, preview.topics));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to save the syllabus.");
     } finally {
@@ -156,7 +155,6 @@ export function SyllabusImport({ hasExisting, onCancel, onSaved }: {
       <div><span>03</span><strong>Private by default</strong><small>Your file stays with this app</small></div>
     </div>
 
-    {hasExisting && <p className="warning-note">You already have a syllabus. Nothing changes until you review and confirm this import.</p>}
     {error && <p className="form-error" role="alert">{error}</p>}
     <div className="form-actions split-actions">
       <button type="button" className="ghost-button" onClick={onCancel}>Cancel</button>

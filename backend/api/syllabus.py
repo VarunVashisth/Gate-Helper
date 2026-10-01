@@ -29,12 +29,23 @@ class ProgressPayload(BaseModel):
 
 
 class SyllabusPayload(BaseModel):
+    id: str | None = None
+    title: str | None = None
     topics: list[TopicPayload]
     progress: ProgressPayload
 
 
 class SaveSyllabusRequest(BaseModel):
+    title: str = Field(default="GATE Syllabus", min_length=1, max_length=160)
     topics: list[TopicPayload] = Field(min_length=1, max_length=SyllabusService.MAX_TOPICS)
+
+
+class SyllabusSummaryPayload(BaseModel):
+    id: str
+    title: str
+    subject_count: int
+    progress: ProgressPayload
+    updated_at: str
 
 
 class UpdateProgressRequest(BaseModel):
@@ -73,9 +84,11 @@ def _to_payload(topic: TopicRecord | ParsedTopic) -> TopicPayload:
     )
 
 
-def _document_response(service_result) -> SyllabusPayload:
+def _document_response(service_result, syllabus_id: str | None = None, title: str | None = None) -> SyllabusPayload:
     topics, summary = service_result
     return SyllabusPayload(
+        id=syllabus_id,
+        title=title,
         topics=[_to_payload(topic) for topic in topics],
         progress=ProgressPayload(
             completed=summary.completed,
@@ -88,6 +101,33 @@ def _document_response(service_result) -> SyllabusPayload:
 @router.get("", response_model=SyllabusPayload)
 def get_syllabus(service: ServiceDependency) -> SyllabusPayload:
     return _document_response(service.get_tree())
+
+
+@router.get("/workspaces", response_model=list[SyllabusSummaryPayload])
+def list_syllabi(service: ServiceDependency) -> list[SyllabusSummaryPayload]:
+    return [SyllabusSummaryPayload(
+        id=item.id, title=item.title, subject_count=item.subject_count,
+        progress=ProgressPayload(completed=item.progress.completed, total=item.progress.total, percentage=item.progress.percentage),
+        updated_at=item.updated_at,
+    ) for item in service.list_syllabi()]
+
+
+@router.post("/workspaces", response_model=SyllabusPayload, status_code=status.HTTP_201_CREATED)
+def create_syllabus(request: SaveSyllabusRequest, service: ServiceDependency) -> SyllabusPayload:
+    try:
+        syllabus_id, topics, progress = service.create_syllabus(request.title, [_to_record(topic) for topic in request.topics])
+        return _document_response((topics, progress), syllabus_id, request.title)
+    except ValueError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(error)) from error
+
+
+@router.get("/workspaces/{syllabus_id}", response_model=SyllabusPayload)
+def get_syllabus_workspace(syllabus_id: str, service: ServiceDependency) -> SyllabusPayload:
+    summaries = {item.id: item for item in service.list_syllabi()}
+    item = summaries.get(str(syllabus_id))
+    if not item:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Syllabus not found.")
+    return _document_response(service.get_tree(str(syllabus_id)), str(syllabus_id), item.title)
 
 
 @router.post("/import", response_model=ImportPreview)
@@ -113,7 +153,7 @@ async def import_syllabus_pdf(file: Annotated[UploadFile, File()]) -> ImportPrev
 @router.put("", response_model=SyllabusPayload)
 def save_syllabus(request: SaveSyllabusRequest, service: ServiceDependency) -> SyllabusPayload:
     try:
-        return _document_response(service.replace_tree([_to_record(topic) for topic in request.topics]))
+        return _document_response(service.replace_tree([_to_record(topic) for topic in request.topics], title=request.title))
     except ValueError as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(error)) from error
 
@@ -127,3 +167,14 @@ def update_topic_progress(
     except KeyError as error:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Topic not found.") from error
 
+
+@router.patch("/workspaces/{syllabus_id}/topics/{topic_id}", response_model=SyllabusPayload)
+def update_workspace_progress(syllabus_id: str, topic_id: UUID, request: UpdateProgressRequest, service: ServiceDependency) -> SyllabusPayload:
+    try:
+        summaries = {item.id: item for item in service.list_syllabi()}
+        item = summaries.get(str(syllabus_id))
+        if not item:
+            raise KeyError(syllabus_id)
+        return _document_response(service.set_completed(str(topic_id), request.completed, str(syllabus_id)), str(syllabus_id), item.title)
+    except KeyError as error:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Syllabus or topic not found.") from error

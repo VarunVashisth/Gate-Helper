@@ -3,7 +3,7 @@ import sqlite3
 from backend.db.database import initialize_database
 
 
-EXPECTED_TABLES = {"papers", "questions", "attempts", "syllabus_topics", "progress"}
+EXPECTED_TABLES = {"papers", "questions", "attempts", "syllabi", "syllabus_topics", "progress"}
 
 
 def test_initialize_database_creates_all_phase_zero_tables(tmp_path):
@@ -25,4 +25,3 @@ def test_initialize_database_is_idempotent(tmp_path):
     initialize_database(database_path)
 
     assert database_path.is_file()
-

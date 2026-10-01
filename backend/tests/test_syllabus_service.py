@@ -63,3 +63,20 @@ def test_replace_tree_rejects_duplicate_ids(tmp_path):
     else:
         raise AssertionError("Duplicate topic IDs should be rejected")
 
+
+def test_multiple_syllabi_keep_topics_and_progress_isolated(tmp_path):
+    database_path = tmp_path / "multiple.db"
+    initialize_database(database_path)
+    service = SyllabusService(database_path)
+    source = [topic("Subject", [topic("Topic", [topic("Checklist item")])])]
+
+    first_id, first_tree, _ = service.create_syllabus("GATE CS 2027", source)
+    second_id, second_tree, _ = service.create_syllabus("GATE DA 2027", source)
+    first_leaf = first_tree[0].subtopics[0].subtopics[0]
+    second_leaf = second_tree[0].subtopics[0].subtopics[0]
+    service.set_completed(first_leaf.id, True, first_id)
+
+    summaries = {item.id: item for item in service.list_syllabi()}
+    assert first_leaf.id != second_leaf.id
+    assert summaries[first_id].progress.completed == 1
+    assert summaries[second_id].progress.completed == 0

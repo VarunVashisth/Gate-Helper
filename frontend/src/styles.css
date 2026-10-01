@@ -294,3 +294,32 @@ body {
   .subject-body { padding: 3px 10px 12px; }
   .sheet-item { padding-left: 20px; }
 }
+
+/* Multi-syllabus library */
+.syllabus-library { display: grid; gap: 14px; max-width: 1000px; }
+.syllabus-card { display: grid; grid-template-columns: 54px minmax(0, 1fr) 170px 28px; align-items: center; gap: 18px; min-height: 126px; padding: 22px; color: var(--text); text-decoration: none; border: 1px solid var(--line); border-radius: 17px; background: var(--surface); box-shadow: 0 7px 24px rgba(28,36,66,.045); transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
+.syllabus-card:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 13px 34px rgba(28,36,66,.09); }
+.syllabus-card-icon { display: grid; place-items: center; width: 54px; height: 54px; color: white; font-size: 21px; font-weight: 750; border-radius: 15px; background: linear-gradient(145deg, var(--accent), var(--accent-strong)); }
+.syllabus-card-copy h2 { margin: 6px 0 5px; color: var(--heading); font-size: 19px; }
+.syllabus-card-copy p { margin: 0; color: var(--muted); font-size: 12px; }
+.syllabus-card-progress { display: grid; gap: 5px; }
+.syllabus-card-progress strong { color: var(--heading); font-size: 22px; }
+.syllabus-card-progress > span { color: var(--muted); font-size: 10px; }
+.syllabus-card-progress i { display: block; width: 100%; height: 6px; overflow: hidden; border-radius: 6px; background: var(--surface-muted); }
+.syllabus-card-progress i span { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+.syllabus-card-arrow { color: var(--accent-strong); font-size: 20px; }
+.empty-library { display: grid; justify-items: center; gap: 8px; min-height: 220px; margin: 0; padding: 35px; color: var(--muted); border: 1px dashed var(--line-strong); border-radius: 17px; background: var(--surface); }
+.empty-library:hover { color: var(--accent-strong); border-color: var(--accent); background: var(--accent-soft); }
+.empty-library > span { font-size: 32px; font-weight: 300; }
+.empty-library strong { color: var(--heading); font-size: 17px; }
+.empty-library small { font-weight: 500; }
+.syllabus-breadcrumb { margin-bottom: 24px; }
+.syllabus-breadcrumb a { color: var(--muted); font-size: 12px; font-weight: 650; text-decoration: none; }
+.syllabus-breadcrumb a:hover { color: var(--accent-strong); }
+
+@media (max-width: 700px) {
+  .syllabus-card { grid-template-columns: 44px minmax(0, 1fr) 20px; gap: 13px; padding: 17px; }
+  .syllabus-card-icon { width: 44px; height: 44px; border-radius: 12px; }
+  .syllabus-card-progress { grid-column: 2; }
+  .syllabus-card-arrow { grid-column: 3; grid-row: 1; }
+}

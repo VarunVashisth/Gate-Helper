@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4, uuid5
 
 from backend.db.database import connect
 
@@ -20,6 +20,15 @@ class ProgressSummary:
     percentage: float
 
 
+@dataclass(frozen=True)
+class SyllabusSummary:
+    id: str
+    title: str
+    subject_count: int
+    progress: ProgressSummary
+    updated_at: str
+
+
 class SyllabusService:
     MAX_TOPICS = 2000
     MAX_DEPTH = 6
@@ -27,7 +36,18 @@ class SyllabusService:
     def __init__(self, database_path: Path):
         self.database_path = database_path
 
-    def get_tree(self) -> tuple[list[TopicRecord], ProgressSummary]:
+    def list_syllabi(self) -> list[SyllabusSummary]:
+        with connect(self.database_path) as connection:
+            rows = connection.execute(
+                "SELECT id, title, updated_at FROM syllabi ORDER BY updated_at DESC, created_at DESC"
+            ).fetchall()
+        summaries = []
+        for row in rows:
+            topics, progress = self.get_tree(row["id"])
+            summaries.append(SyllabusSummary(row["id"], row["title"], len(topics), progress, row["updated_at"]))
+        return summaries
+
+    def get_tree(self, syllabus_id: str = "legacy-syllabus") -> tuple[list[TopicRecord], ProgressSummary]:
         with connect(self.database_path) as connection:
             rows = connection.execute(
                 """
@@ -35,8 +55,9 @@ class SyllabusService:
                        COALESCE(progress.completed, 0) AS completed
                 FROM syllabus_topics AS topic
                 LEFT JOIN progress ON progress.topic_id = topic.id
+                WHERE topic.syllabus_id = ?
                 ORDER BY topic.position, topic.rowid
-                """
+                """, (syllabus_id,)
             ).fetchall()
 
         records = {
@@ -52,18 +73,45 @@ class SyllabusService:
             (parent.subtopics if parent else roots).append(record)
         return roots, self._summary(roots)
 
-    def replace_tree(self, topics: list[TopicRecord]) -> tuple[list[TopicRecord], ProgressSummary]:
+    def create_syllabus(self, title: str, topics: list[TopicRecord]) -> tuple[str, list[TopicRecord], ProgressSummary]:
+        syllabus_id = str(uuid4())
+        topics = self._scope_ids(topics, UUID(syllabus_id))
         self._validate_tree(topics)
         with connect(self.database_path) as connection:
-            connection.execute("DELETE FROM syllabus_topics")
-            self._insert_level(connection, topics, parent_id=None)
-        return self.get_tree()
+            connection.execute("INSERT INTO syllabi(id, title) VALUES (?, ?)", (syllabus_id, title.strip()))
+            self._insert_level(connection, topics, parent_id=None, syllabus_id=syllabus_id)
+        tree, progress = self.get_tree(syllabus_id)
+        return syllabus_id, tree, progress
 
-    def set_completed(self, topic_id: str, completed: bool) -> tuple[list[TopicRecord], ProgressSummary]:
+    def replace_tree(self, topics: list[TopicRecord], syllabus_id: str = "legacy-syllabus", title: str | None = None) -> tuple[list[TopicRecord], ProgressSummary]:
+        self._validate_tree(topics)
+        with connect(self.database_path) as connection:
+            exists = connection.execute("SELECT 1 FROM syllabi WHERE id = ?", (syllabus_id,)).fetchone()
+            if not exists:
+                if syllabus_id != "legacy-syllabus":
+                    raise KeyError(syllabus_id)
+                connection.execute("INSERT INTO syllabi(id, title) VALUES (?, ?)", (syllabus_id, title or "GATE Syllabus"))
+            connection.execute("DELETE FROM syllabus_topics WHERE syllabus_id = ?", (syllabus_id,))
+            connection.execute("UPDATE syllabi SET title = COALESCE(?, title), updated_at = CURRENT_TIMESTAMP WHERE id = ?", (title, syllabus_id))
+            self._insert_level(connection, topics, parent_id=None, syllabus_id=syllabus_id)
+        return self.get_tree(syllabus_id)
+
+    @staticmethod
+    def _scope_ids(topics: list[TopicRecord], namespace: UUID) -> list[TopicRecord]:
+        def clone(topic: TopicRecord) -> TopicRecord:
+            return TopicRecord(
+                id=str(uuid5(namespace, topic.id)),
+                name=topic.name,
+                completed=topic.completed,
+                subtopics=[clone(child) for child in topic.subtopics],
+            )
+        return [clone(topic) for topic in topics]
+
+    def set_completed(self, topic_id: str, completed: bool, syllabus_id: str = "legacy-syllabus") -> tuple[list[TopicRecord], ProgressSummary]:
         self._validate_id(topic_id)
         with connect(self.database_path) as connection:
             exists = connection.execute(
-                "SELECT 1 FROM syllabus_topics WHERE id = ?", (topic_id,)
+                "SELECT 1 FROM syllabus_topics WHERE id = ? AND syllabus_id = ?", (topic_id, syllabus_id)
             ).fetchone()
             if not exists:
                 raise KeyError(topic_id)
@@ -92,19 +140,20 @@ class SyllabusService:
                 [(row["id"], now_value) for row in affected],
             )
             self._recompute_ancestors(connection, topic_id)
-        return self.get_tree()
+            connection.execute("UPDATE syllabi SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (syllabus_id,))
+        return self.get_tree(syllabus_id)
 
-    def _insert_level(self, connection, topics: list[TopicRecord], parent_id: str | None) -> None:
+    def _insert_level(self, connection, topics: list[TopicRecord], parent_id: str | None, syllabus_id: str) -> None:
         for position, topic in enumerate(topics):
             connection.execute(
-                "INSERT INTO syllabus_topics(id, parent_id, name, position) VALUES (?, ?, ?, ?)",
-                (topic.id, parent_id, topic.name.strip(), position),
+                "INSERT INTO syllabus_topics(id, parent_id, name, position, syllabus_id) VALUES (?, ?, ?, ?, ?)",
+                (topic.id, parent_id, topic.name.strip(), position, syllabus_id),
             )
             connection.execute(
                 "INSERT INTO progress(topic_id, completed) VALUES (?, ?)",
                 (topic.id, int(topic.completed)),
             )
-            self._insert_level(connection, topic.subtopics, topic.id)
+            self._insert_level(connection, topic.subtopics, topic.id, syllabus_id)
 
     def _recompute_ancestors(self, connection, topic_id: str) -> None:
         parent_row = connection.execute(
@@ -186,4 +235,3 @@ class SyllabusService:
         total = len(leaves)
         percentage = round((completed / total * 100) if total else 0, 1)
         return ProgressSummary(completed=completed, total=total, percentage=percentage)
-

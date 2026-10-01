@@ -56,6 +56,13 @@ CREATE TABLE IF NOT EXISTS progress (
     FOREIGN KEY (topic_id) REFERENCES syllabus_topics(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS syllabi (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_questions_paper_id ON questions(paper_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_paper_id ON attempts(paper_id);
 CREATE INDEX IF NOT EXISTS idx_syllabus_topics_parent_id ON syllabus_topics(parent_id);
@@ -74,4 +81,19 @@ def initialize_database(database_path: Path) -> None:
     database_path.parent.mkdir(parents=True, exist_ok=True)
     with connect(database_path) as connection:
         connection.executescript(SCHEMA)
-
+        columns = {
+            row["name"] for row in connection.execute("PRAGMA table_info(syllabus_topics)")
+        }
+        if "syllabus_id" not in columns:
+            connection.execute("ALTER TABLE syllabus_topics ADD COLUMN syllabus_id TEXT")
+        legacy_count = connection.execute("SELECT COUNT(*) AS count FROM syllabus_topics").fetchone()["count"]
+        if legacy_count:
+            connection.execute(
+                "INSERT OR IGNORE INTO syllabi(id, title) VALUES ('legacy-syllabus', 'GATE Syllabus')"
+            )
+            connection.execute(
+                "UPDATE syllabus_topics SET syllabus_id = 'legacy-syllabus' WHERE syllabus_id IS NULL"
+            )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_syllabus_topics_syllabus_id ON syllabus_topics(syllabus_id)"
+        )
