@@ -67,5 +67,5 @@ def test_import_returns_editable_preview_for_valid_pdf():
     assert response.status_code == 200
     preview = response.json()
     assert preview["page_count"] == 1
-    assert preview["topics"][0]["name"] == "Section 1: Engineering Mathematics"
+    assert preview["topics"][0]["name"] == "Engineering Mathematics"
     assert preview["topics"][0]["subtopics"][0]["name"] == "Linear Algebra"

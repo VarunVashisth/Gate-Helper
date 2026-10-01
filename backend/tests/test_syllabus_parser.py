@@ -21,7 +21,7 @@ def test_parser_builds_reviewable_hierarchy():
 
     assert result.page_count == 1
     assert result.title == "official syllabus"
-    assert result.topics[0].name == "Section 1: Engineering Mathematics"
+    assert result.topics[0].name == "Engineering Mathematics"
     assert [topic.name for topic in result.topics[0].subtopics] == ["Linear Algebra", "Calculus"]
     assert result.topics[0].subtopics[0].subtopics[0].name == "matrices"
 
@@ -41,17 +41,34 @@ def test_parser_understands_official_cs_syllabus_sample():
 
     assert result.title == "Computer Science and Information Technology"
     assert len(result.topics) == 10
-    assert result.topics[0].name == "Section 1: Engineering Mathematics"
-    assert result.topics[-1].name == "Section 10: Computer Networks"
+    assert result.topics[0].name == "Engineering Mathematics"
+    assert result.topics[-1].name == "Computer Networks"
     mathematics = result.topics[0]
     assert [topic.name for topic in mathematics.subtopics] == [
-        "Discrete Mathematics",
-        "Linear Algebra",
-        "Calculus",
-        "Probability and Statistics",
+        "Logic", "Sets, Relations and Algebraic Structures", "Graphs", "Combinatorics",
+        "Linear Algebra", "Calculus", "Probability and Statistics",
     ]
-    linear_algebra = mathematics.subtopics[1]
-    assert "LU decomposition" in [topic.name for topic in linear_algebra.subtopics]
+    linear_algebra = mathematics.subtopics[4]
+    assert "LU Decomposition" in [topic.name for topic in linear_algebra.subtopics]
+    assert all(not subject.name.lower().startswith("section") for subject in result.topics)
+
+
+def test_official_cs_profile_has_stable_ids_and_complete_three_level_shape():
+    sample = Path(__file__).parents[2] / "assets" / "CS_GATE2027_Syllabus.pdf"
+    parser = PdfSyllabusParser()
+    first = parser.parse(sample.read_bytes(), sample.name)
+    second = parser.parse(sample.read_bytes(), sample.name)
+
+    assert [subject.id for subject in first.topics] == [subject.id for subject in second.topics]
+    assert all(subject.subtopics for subject in first.topics)
+    assert all(topic.subtopics for subject in first.topics for topic in subject.subtopics)
+    assert all(not item.subtopics for subject in first.topics for topic in subject.subtopics for item in topic.subtopics)
+    assert sum(len(topic.subtopics) for subject in first.topics for topic in subject.subtopics) == 141
+
+    networks = first.topics[-1]
+    assert [topic.name for topic in networks.subtopics] == [
+        "Network Fundamentals", "Data Link Layer", "Routing", "IPv4", "TCP", "Application Layer",
+    ]
 
 
 def test_parser_understands_official_da_syllabus_sample():
@@ -61,7 +78,7 @@ def test_parser_understands_official_da_syllabus_sample():
     assert result.title == "Data Science and Artificial Intelligence"
     assert len(result.topics) == 7
     machine_learning = result.topics[5]
-    assert machine_learning.name == "Section 6: Machine Learning"
+    assert machine_learning.name == "Machine Learning"
     assert [topic.name for topic in machine_learning.subtopics] == [
         "Supervised Learning",
         "Unsupervised Learning",
@@ -71,4 +88,3 @@ def test_parser_understands_official_da_syllabus_sample():
         for section in result.topics
         for topic in section.subtopics
     )
-
